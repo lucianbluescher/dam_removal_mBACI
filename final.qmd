@@ -24,7 +24,7 @@ library(knitr)
 
 ## Study Overview
 
-Atristain et al. (2024) investigated whether decommissioning a large dam (42 m tall, Enobieta Dam, northern Spain) restored downstream macroinvertebrate communities. They used a **multiple Before-After/Control-Impact (mBACI) design** — which is the ecological equivalent of a **difference-in-differences (DiD)** framework.
+Atristain et al. (2024) investigated whether decommissioning a large dam (42 m tall, Enobieta Dam, northern Spain) restored downstream macroinvertebrate communities. They used a **multiple Before-After/Control-Impact (mBACI) design** - which is the ecological equivalent of a **difference-in-differences (DiD)** framework.
 
 **The causal question:** Did the reservoir drawdown cause invertebrate communities at impact sites to recover to levels comparable to undammed control sites?
 
@@ -37,14 +37,14 @@ Atristain et al. (2024) investigated whether decommissioning a large dam (42 m t
 The mBACI design maps directly onto the DiD framework you've seen in class:
 
 | DiD Term | mBACI Equivalent | Description |
-|----------|-----------------|-------------|
+|------------------|------------------------------|------------------------|
 | Treatment group | Impact sites (I1–I4) | Sites downstream of the dam |
 | Control group | Control sites (C1–C4) | Undammed tributaries & upstream site |
 | Pre-treatment | Before period (B) | November 2017 |
 | Post-treatment | Drawdown (D) & After (A) | October 2019 & November 2020 |
 | Treatment effect | Period × Reach interaction | DiD estimator |
 
-The key assumption — **parallel trends** — requires that control and impact sites would have followed the same trajectory in the absence of the drawdown. The use of *multiple* control sites in different tributaries strengthens this assumption.
+The key assumption - **parallel trends** - requires that control and impact sites would have followed the same trajectory in the absence of the drawdown. The use of *multiple* control sites in different tributaries strengthens this assumption.
 
 ## Step 1: Load and Wrangle the Data
 
@@ -52,10 +52,10 @@ The key assumption — **parallel trends** — requires that control and impact 
 #| label: load-data
 
 # read the invertebrates sheet from the Dryad dataset
-invert_raw <- read_excel("Atristainetal_JAE_Data.xlsx",
+invert_raw <- read_excel("data/Atristainetal_JAE_Data.xlsx",
                          sheet = "Invertebrates")
 
-# the sheet has two columns named "Site" — rename for clarity
+# the sheet has two columns named "Site" - rename for clarity
 # col 1 = site name (e.g., "Enobieta Up"), col 5 = site code (e.g., "C1")
 colnames(invert_raw)[1] <- "site_name"
 colnames(invert_raw)[5] <- "site_code"
@@ -89,7 +89,7 @@ invert <- invert_raw |>
 glimpse(invert)
 ```
 
-For the main mBACI model, we exclude the reservoir sites (R) — they were only sampled in the "After" period, so they can't be part of the before-after comparison.
+For the main mBACI model, we exclude the reservoir sites (R) - they were only sampled in the "After" period, so they can't be part of the before-after comparison.
 
 ```{r}
 #| label: filter-baci
@@ -99,7 +99,7 @@ invert_baci <- invert |>
   filter(reach_type %in% c("C", "I"))
 ```
 
-**Sample sizes:** `r nrow(filter(invert_baci, period == "Before"))` samples before, `r nrow(filter(invert_baci, period == "Drawdown"))` during drawdown, and `r nrow(filter(invert_baci, period == "After"))` after — split evenly between control and impact sites (5 Surber net replicates × 4 sites per group × 3 periods = 120 total).
+**Sample sizes:** `r nrow(filter(invert_baci, period == "Before"))` samples before, `r nrow(filter(invert_baci, period == "Drawdown"))` during drawdown, and `r nrow(filter(invert_baci, period == "After"))` after - split evenly between control and impact sites (5 Surber net replicates × 4 sites per group × 3 periods = 120 total).
 
 ## Step 2: Explore the Data
 
@@ -107,7 +107,7 @@ Before modeling, let's see what the data look like. This replicates the pattern 
 
 ```{r}
 #| label: fig-richness
-#| fig-cap: "Taxa richness across periods and reach types. Before drawdown, impact sites had notably lower richness than controls — especially I1 (closest to the dam). After drawdown, impact sites recovered to match controls."
+#| fig-cap: "Taxa richness across periods and reach types. Before drawdown, impact sites had notably lower richness than controls - especially I1 (closest to the dam). After drawdown, impact sites recovered to match controls."
 #| fig-width: 9
 #| fig-height: 5
 
@@ -125,7 +125,10 @@ invert_baci |>
     fill = "Reach type"
   ) +
   theme_minimal(base_size = 13) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+  axis.text.x = element_text(angle = 45, hjust = 1),
+  panel.border = element_rect(color = "grey70", fill = NA, linewidth = 0.5)
+)
 ```
 
 The visual pattern tells the story: before drawdown, impact sites (especially I1 and I2, closest to the dam) had substantially fewer taxa. By the "After" period, they look indistinguishable from controls. That convergence is the treatment effect we want to estimate formally.
@@ -149,7 +152,7 @@ did_means |>
 
 ```{r}
 #| label: fig-did
-#| fig-cap: "Mean taxa richness by period and reach type — the classic DiD visualization. The gap between control and impact narrows over time, indicating recovery."
+#| fig-cap: "Mean taxa richness by period and reach type - the classic DiD visualization. The gap between control and impact narrows over time, indicating recovery."
 #| fig-width: 7
 #| fig-height: 4.5
 
@@ -179,17 +182,17 @@ This is the visual signature of a successful restoration: the impact group conve
 
 The paper uses a linear mixed-effects (LME) model with:
 
-- **Fixed effects:** `period`, `reach_type`, and their interaction (`period:reach_type`)
-- **Random effect:** `site_code` (to account for repeated measures at the same site across replicates)
+-   **Fixed effects:** `period`, `reach_type`, and their interaction (`period:reach_type`)
+-   **Random effect:** `site_code` (to account for repeated measures at the same site across replicates)
 
-The interaction term `period:reach_type` is the **DiD estimator** — it captures whether the *change over time* differed between control and impact sites.
+The interaction term `period:reach_type` is the **DiD estimator** - it captures whether the *change over time* differed between control and impact sites.
 
 ```{r}
 #| label: fit-model
 
 # fit the mBACI linear mixed-effects model
 # this is the exact specification from the paper (Section 2.5)
-mod_richness <- lmer(richness ~ period * reach_type + (1 | site_code),
+mod_richness <- lmer(richness ~ period * reach_type + (1 | site_code), # this accounts for non-independence of replicates within sites (5 observations per site per occasion)
                      data = invert_baci,
                      REML = TRUE)
 
@@ -205,14 +208,13 @@ Let's extract the fixed effects and interpret them in the DiD framework:
 
 tidy(mod_richness, effects = "fixed", conf.int = TRUE) |>
   kable(digits = 3,
-        col.names = c("Term", "Estimate", "SE", "Statistic",
-                       "df", "p-value", "CI Lower", "CI Upper"))
+        col.names = c("Effect", "Term", "Estimate", "SE", "Statistic", "CI Lower", "CI Upper"))
 ```
 
 Here's how to read each coefficient:
 
 | Coefficient | Interpretation |
-|-------------|---------------|
+|----------------------------------|--------------------------------------|
 | `(Intercept)` | Mean richness for control sites in the Before period |
 | `reach_typeI` | Baseline difference: impact minus control in the Before period (**BCI** in the paper) |
 | `periodDrawdown` | Change in control sites from Before to Drawdown |
@@ -220,7 +222,7 @@ Here's how to read each coefficient:
 | `periodDrawdown:reach_typeI` | **DiD estimator (BD:CI)**: Did impact sites change *differently* than controls from Before → Drawdown? |
 | `periodAfter:reach_typeI` | **DiD estimator (BA:CI)**: Did impact sites change *differently* than controls from Before → After? |
 
-The two interaction terms are the key treatment effects. A positive `periodAfter:reach_typeI` means impact sites gained more richness than controls between the Before and After periods — i.e., they recovered.
+The two interaction terms are the key treatment effects. A positive `periodAfter:reach_typeI` means impact sites gained more richness than controls between the Before and After periods - i.e., they recovered.
 
 ## Step 5: Test the Overall Interaction (BDA:CI)
 
@@ -260,7 +262,7 @@ effect_sizes |>
         col.names = c("Period", "Site", "Mean S", "Control Mean", "Ln-ratio"))
 ```
 
-Negative values mean the impact site had lower richness than controls. In the Before period, I1 (closest to the dam) had the largest negative effect. By the After period, effect sizes are near zero — recovery.
+Negative values mean the impact site had lower richness than controls. In the Before period, I1 (closest to the dam) had the largest negative effect. By the After period, effect sizes are near zero - recovery.
 
 ## Key Assumptions and Evaluation
 
@@ -272,7 +274,7 @@ The mBACI/DiD approach rests on several assumptions:
 
 **3. No confounders coinciding with treatment timing:** Nothing else changed between periods that differentially affected impact vs. control sites. The pristine, protected status of the Artikutza catchment makes this plausible.
 
-**One limitation:** There is only a single pre-treatment sampling point (November 2017), making it impossible to formally test parallel pre-trends — a common concern in DiD designs.
+**One limitation:** There is only a single pre-treatment sampling point (November 2017), making it impossible to formally test parallel pre-trends - a common concern in DiD designs.
 
 ## Summary
 
