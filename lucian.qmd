@@ -1,0 +1,11 @@
+---
+title: "spagethi"
+format: html
+---
+
+```{r}
+grain_size <- readxl::read_excel("data/Atristainetal_JAE_Data.xlsx", sheet = 1)
+invertabrates <- readxl::read_excel("data/Atristainetal_JAE_Data.xlsx", sheet = 2)
+
+```
+
